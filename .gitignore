@@ -24,6 +24,8 @@ wheels/
 venv/
 ENV/
 env/
+.venv/
+ibas-env/
 
 # IDE
 .idea/
@@ -34,8 +36,20 @@ env/
 # Project specific
 dataset/
 attendance_logs/
+embeddings/
 *.jpg
 *.jpeg
 *.png
 *.csv
-shape_predictor_68_face_landmarks.dat 
+shape_predictor_68_face_landmarks.dat
+facenet_keras.h5
+haarcascade_frontalface_alt2.xml
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# Environment variables
+.env
+.env.* 
