@@ -423,72 +423,111 @@ class IBASApp:
             messagebox.showerror("Error", "A student with this Roll No already exists.")
             return
 
-        # Check if liveness detection is available
-        if self.predictor is None:
-            # If liveness detection is not available, capture image directly
-            try:
-                os.makedirs(path, exist_ok=True)
-                img_resp = urllib.request.urlopen(self.current_camera_url)
-                imgnp = np.array(bytearray(img_resp.read()), dtype=np.uint8)
-                img = cv2.imdecode(imgnp, -1)
-                cv2.imwrite(filename, img)
-                self.capture_preview.configure(image=ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))))
-                messagebox.showinfo("Success", f"Captured image for {name} ({roll}).")
-                self.refresh_classes()
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to capture image: {str(e)}")
-            return
+        # Create URL input dialog
+        url_dialog = tb.Toplevel(self.root)
+        url_dialog.title("Camera URL")
+        url_dialog.geometry("400x150")
+        url_dialog.transient(self.root)
+        url_dialog.grab_set()
 
-        # Start liveness detection
-        self.liveness_check_active = True
-        self.blink_counter = 0
-        self.head_movement_counter = 0
-        self.previous_head_position = None
+        # Center the dialog
+        url_dialog.update_idletasks()
+        width = url_dialog.winfo_width()
+        height = url_dialog.winfo_height()
+        x = (url_dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (url_dialog.winfo_screenheight() // 2) - (height // 2)
+        url_dialog.geometry(f'{width}x{height}+{x}+{y}')
 
-        messagebox.showinfo("Liveness Check", "Please blink twice and move your head slightly to verify you are a real person.")
-        
-        def check_liveness():
-            if not self.liveness_check_active:
-                return
+        # Add URL input
+        tb.Label(url_dialog, text="Enter Camera URL:").pack(pady=10)
+        url_entry = tb.Entry(url_dialog, width=50)
+        url_entry.insert(0, self.current_camera_url)  # Show current URL
+        url_entry.pack(pady=5)
 
-            try:
-                img_resp = urllib.request.urlopen(self.current_camera_url)
-                imgnp = np.array(bytearray(img_resp.read()), dtype=np.uint8)
-                frame = cv2.imdecode(imgnp, -1)
-
-                # Perform liveness checks
-                blinked, frame = self.detect_blink(frame)
-                moved, frame = self.detect_head_movement(frame)
-
-                # Display status
-                status_text = f"Blinks: {self.blink_counter}/{self.required_blinks} | Head Movements: {self.head_movement_counter}/{self.required_head_movements}"
-                cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-                # Show the frame
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(frame_rgb)
-                imgtk = ImageTk.PhotoImage(image=img)
-                self.capture_preview.imgtk = imgtk
-                self.capture_preview.configure(image=imgtk)
-
-                # Check if liveness requirements are met
-                if self.blink_counter >= self.required_blinks and self.head_movement_counter >= self.required_head_movements:
-                    self.liveness_check_active = False
+        def start_capture():
+            new_url = url_entry.get().strip()
+            if new_url:
+                self.current_camera_url = new_url
+                url_dialog.destroy()
+                
+                # Check if liveness detection is available
+                if self.predictor is None:
+                    # If liveness detection is not available, capture image directly
                     try:
                         os.makedirs(path, exist_ok=True)
-                        cv2.imwrite(filename, frame)
+                        img_resp = urllib.request.urlopen(self.current_camera_url)
+                        imgnp = np.array(bytearray(img_resp.read()), dtype=np.uint8)
+                        img = cv2.imdecode(imgnp, -1)
+                        cv2.imwrite(filename, img)
+                        self.capture_preview.configure(image=ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))))
                         messagebox.showinfo("Success", f"Captured image for {name} ({roll}).")
                         self.refresh_classes()
                     except Exception as e:
-                        messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+                        messagebox.showerror("Error", f"Failed to capture image: {str(e)}")
                     return
 
-                self.root.after(50, check_liveness)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to capture image: {str(e)}")
-                self.liveness_check_active = False
+                # Start liveness detection
+                self.liveness_check_active = True
+                self.blink_counter = 0
+                self.head_movement_counter = 0
+                self.previous_head_position = None
 
-        check_liveness()
+                messagebox.showinfo("Liveness Check", "Please blink twice and move your head slightly to verify you are a real person.")
+                
+                def check_liveness():
+                    if not self.liveness_check_active:
+                        return
+
+                    try:
+                        img_resp = urllib.request.urlopen(self.current_camera_url)
+                        imgnp = np.array(bytearray(img_resp.read()), dtype=np.uint8)
+                        frame = cv2.imdecode(imgnp, -1)
+
+                        # Perform liveness checks
+                        blinked, frame = self.detect_blink(frame)
+                        moved, frame = self.detect_head_movement(frame)
+
+                        # Display status
+                        status_text = f"Blinks: {self.blink_counter}/{self.required_blinks} | Head Movements: {self.head_movement_counter}/{self.required_head_movements}"
+                        cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                        # Show the frame
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        img = Image.fromarray(frame_rgb)
+                        imgtk = ImageTk.PhotoImage(image=img)
+                        self.capture_preview.imgtk = imgtk
+                        self.capture_preview.configure(image=imgtk)
+
+                        # Check if liveness requirements are met
+                        if self.blink_counter >= self.required_blinks and self.head_movement_counter >= self.required_head_movements:
+                            self.liveness_check_active = False
+                            try:
+                                os.makedirs(path, exist_ok=True)
+                                cv2.imwrite(filename, frame)
+                                messagebox.showinfo("Success", f"Captured image for {name} ({roll}).")
+                                self.refresh_classes()
+                            except Exception as e:
+                                messagebox.showerror("Error", f"Failed to save image: {str(e)}")
+                            return
+
+                        self.root.after(50, check_liveness)
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to capture image: {str(e)}")
+                        self.liveness_check_active = False
+
+                check_liveness()
+            else:
+                messagebox.showerror("Error", "Please enter a valid URL")
+
+        # Add buttons
+        button_frame = tb.Frame(url_dialog)
+        button_frame.pack(pady=10)
+        tb.Button(button_frame, text="Start Capture", command=start_capture).pack(side='left', padx=5)
+        tb.Button(button_frame, text="Cancel", command=url_dialog.destroy).pack(side='left', padx=5)
+
+        # Bind Enter key to start
+        url_entry.bind('<Return>', lambda e: start_capture())
+        url_entry.focus_set()
 
     def load_students(self):
         selected_class = self.manage_class_combobox.get()
